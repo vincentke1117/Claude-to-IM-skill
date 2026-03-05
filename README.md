@@ -16,8 +16,8 @@ This skill runs a background daemon that connects your IM bots to Claude Code se
 You (Telegram/Discord/Feishu)
   ↕ Bot API
 Background Daemon (Node.js)
-  ↕ Claude Agent SDK
-Claude Code → reads/writes your codebase
+  ↕ Claude Agent SDK or Codex SDK (configurable via CTI_RUNTIME)
+Claude Code / Codex → reads/writes your codebase
 ```
 
 ## Features
@@ -33,7 +33,8 @@ Claude Code → reads/writes your codebase
 ## Prerequisites
 
 - **Node.js >= 20**
-- **Claude Code CLI** — installed and authenticated (`claude` command available)
+- **Claude Code CLI** (for `CTI_RUNTIME=claude` or `auto`) — installed and authenticated (`claude` command available)
+- **Codex CLI + OPENAI_API_KEY** (for `CTI_RUNTIME=codex` or `auto`) — `npm install -g @openai/codex` and set `OPENAI_API_KEY`
 
 ## Installation
 
@@ -179,6 +180,8 @@ The `setup` wizard provides inline guidance for every step. Here's a summary:
 | `src/config.ts` | Load/save `config.env`, map to bridge settings |
 | `src/store.ts` | JSON file BridgeStore (30 methods, write-through cache) |
 | `src/llm-provider.ts` | Claude Agent SDK `query()` → SSE stream |
+| `src/codex-provider.ts` | Codex SDK `runStreamed()` → SSE stream |
+| `src/sse-utils.ts` | Shared SSE formatting helper |
 | `src/permission-gateway.ts` | Async bridge: SDK `canUseTool` ↔ IM buttons |
 | `src/logger.ts` | Secret-redacted file logging with rotation |
 | `scripts/daemon.sh` | Process management (start/stop/status/logs) |

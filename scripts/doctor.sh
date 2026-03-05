@@ -32,21 +32,74 @@ else
   check "Node.js installed" 1
 fi
 
-# --- Claude CLI available ---
-if command -v claude &>/dev/null; then
-  CLAUDE_VER=$(claude --version 2>/dev/null || echo "unknown")
-  check "Claude CLI available (${CLAUDE_VER})" 0
-else
-  check "Claude CLI available (not found in PATH)" 1
+# --- Read runtime setting ---
+SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+CTI_RUNTIME=$(grep "^CTI_RUNTIME=" "$CONFIG_FILE" 2>/dev/null | head -1 | cut -d= -f2- | tr -d "'" | tr -d '"')
+CTI_RUNTIME="${CTI_RUNTIME:-claude}"
+echo "Runtime: $CTI_RUNTIME"
+echo ""
+
+# --- Claude CLI available (claude/auto modes) ---
+if [ "$CTI_RUNTIME" = "claude" ] || [ "$CTI_RUNTIME" = "auto" ]; then
+  if command -v claude &>/dev/null; then
+    CLAUDE_VER=$(claude --version 2>/dev/null || echo "unknown")
+    check "Claude CLI available (${CLAUDE_VER})" 0
+  else
+    if [ "$CTI_RUNTIME" = "claude" ]; then
+      check "Claude CLI available (not found in PATH)" 1
+    else
+      check "Claude CLI available (not found — will use Codex fallback)" 0
+    fi
+  fi
+
+  # --- SDK cli.js resolvable ---
+  SDK_CLI="$SKILL_DIR/node_modules/@anthropic-ai/claude-agent-sdk/dist/cli.js"
+  if [ -f "$SDK_CLI" ]; then
+    check "Claude SDK cli.js exists ($SDK_CLI)" 0
+  else
+    if [ "$CTI_RUNTIME" = "claude" ]; then
+      check "Claude SDK cli.js exists (not found — run 'npm install' in $SKILL_DIR)" 1
+    else
+      check "Claude SDK cli.js exists (not found — OK for auto/codex mode)" 0
+    fi
+  fi
 fi
 
-# --- SDK cli.js resolvable ---
-SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-SDK_CLI="$SKILL_DIR/node_modules/@anthropic-ai/claude-agent-sdk/dist/cli.js"
-if [ -f "$SDK_CLI" ]; then
-  check "SDK cli.js exists ($SDK_CLI)" 0
-else
-  check "SDK cli.js exists (not found — run 'npm install' in $SKILL_DIR)" 1
+# --- Codex checks (codex/auto modes) ---
+if [ "$CTI_RUNTIME" = "codex" ] || [ "$CTI_RUNTIME" = "auto" ]; then
+  if command -v codex &>/dev/null; then
+    CODEX_VER=$(codex --version 2>/dev/null || echo "unknown")
+    check "Codex CLI available (${CODEX_VER})" 0
+  else
+    if [ "$CTI_RUNTIME" = "codex" ]; then
+      check "Codex CLI available (not found in PATH)" 1
+    else
+      check "Codex CLI available (not found — will use Claude)" 0
+    fi
+  fi
+
+  # Check @openai/codex-sdk
+  CODEX_SDK="$SKILL_DIR/node_modules/@openai/codex-sdk"
+  if [ -d "$CODEX_SDK" ]; then
+    check "@openai/codex-sdk installed" 0
+  else
+    if [ "$CTI_RUNTIME" = "codex" ]; then
+      check "@openai/codex-sdk installed (not found — run 'npm install' in $SKILL_DIR)" 1
+    else
+      check "@openai/codex-sdk installed (not found — OK for auto/claude mode)" 0
+    fi
+  fi
+
+  # Check OPENAI_API_KEY
+  if [ -n "${OPENAI_API_KEY:-}" ]; then
+    check "OPENAI_API_KEY is set" 0
+  else
+    if [ "$CTI_RUNTIME" = "codex" ]; then
+      check "OPENAI_API_KEY is set (not found — required for Codex)" 1
+    else
+      check "OPENAI_API_KEY is set (not found — needed only for Codex fallback)" 0
+    fi
+  fi
 fi
 
 # --- dist/daemon.mjs freshness ---

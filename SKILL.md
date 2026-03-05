@@ -68,10 +68,16 @@ For each enabled channel, read `SKILL_DIR/references/setup-guides.md` and presen
 
 **Step 3 — General settings**
 
-Ask for default working directory, model, and mode:
+Ask for runtime, default working directory, model, and mode:
+- **Runtime**: `claude` (default), `codex`, `auto`
+  - `claude` — uses Claude Code CLI + Claude Agent SDK (requires `claude` CLI installed)
+  - `codex` — uses OpenAI Codex SDK (requires `codex` CLI + `OPENAI_API_KEY`)
+  - `auto` — tries Claude first, falls back to Codex if Claude CLI not found
 - **Working Directory**: default `$CWD`
-- **Model**: `claude-sonnet-4-20250514` (default), `claude-opus-4-6`, `claude-haiku-4-5-20251001`
+- **Model**: When runtime is `claude` or `auto`: `claude-sonnet-4-20250514` (default), `claude-opus-4-6`, `claude-haiku-4-5-20251001`. When runtime is `codex`: user can specify any model supported by their Codex setup.
 - **Mode**: `code` (default), `plan`, `ask`
+
+**Note on AskUserQuestion:** If AskUserQuestion is not available (e.g., in Codex), fall back to explaining the setup steps and ask the user to create `~/.claude-to-im/config.env` manually based on the example at `SKILL_DIR/config.env.example`.
 
 **Step 4 — Write config and validate**
 

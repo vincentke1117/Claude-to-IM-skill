@@ -32,16 +32,39 @@ ensure_built() {
 clean_env() {
   unset CLAUDECODE 2>/dev/null || true
 
+  # Read runtime from config
+  local runtime
+  runtime=$(grep "^CTI_RUNTIME=" "$CTI_HOME/config.env" 2>/dev/null | head -1 | cut -d= -f2- | tr -d "'" | tr -d '"' || true)
+  runtime="${runtime:-claude}"
+
   local mode="${CTI_ENV_ISOLATION:-strict}"
   if [ "$mode" = "strict" ]; then
-    # Strip all ANTHROPIC_* vars unless CTI_ANTHROPIC_PASSTHROUGH=true
-    if [ "${CTI_ANTHROPIC_PASSTHROUGH:-}" != "true" ]; then
-      while IFS='=' read -r name _; do
-        case "$name" in
-          ANTHROPIC_*) unset "$name" 2>/dev/null || true ;;
-        esac
-      done < <(env)
-    fi
+    # Strip ANTHROPIC_* in codex mode, OPENAI_* in claude mode
+    case "$runtime" in
+      codex)
+        while IFS='=' read -r name _; do
+          case "$name" in ANTHROPIC_*) unset "$name" 2>/dev/null || true ;; esac
+        done < <(env)
+        ;;
+      claude)
+        if [ "${CTI_ANTHROPIC_PASSTHROUGH:-}" != "true" ]; then
+          while IFS='=' read -r name _; do
+            case "$name" in ANTHROPIC_*) unset "$name" 2>/dev/null || true ;; esac
+          done < <(env)
+        fi
+        while IFS='=' read -r name _; do
+          case "$name" in OPENAI_*) unset "$name" 2>/dev/null || true ;; esac
+        done < <(env)
+        ;;
+      auto)
+        # In auto mode, keep both sets of env vars
+        if [ "${CTI_ANTHROPIC_PASSTHROUGH:-}" != "true" ]; then
+          while IFS='=' read -r name _; do
+            case "$name" in ANTHROPIC_*) unset "$name" 2>/dev/null || true ;; esac
+          done < <(env)
+        fi
+        ;;
+    esac
   fi
 }
 

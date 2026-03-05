@@ -16,8 +16,8 @@
 你 (Telegram/Discord/飞书)
   ↕ Bot API
 后台守护进程 (Node.js)
-  ↕ Claude Agent SDK
-Claude Code → 读写你的代码库
+  ↕ Claude Agent SDK 或 Codex SDK（通过 CTI_RUNTIME 配置）
+Claude Code / Codex → 读写你的代码库
 ```
 
 ## 功能特点
@@ -33,7 +33,8 @@ Claude Code → 读写你的代码库
 ## 前置要求
 
 - **Node.js >= 20**
-- **Claude Code CLI** — 已安装并完成认证（`claude` 命令可用）
+- **Claude Code CLI**（`CTI_RUNTIME=claude` 或 `auto` 时需要）— 已安装并完成认证（`claude` 命令可用）
+- **Codex CLI + OPENAI_API_KEY**（`CTI_RUNTIME=codex` 或 `auto` 时需要）— `npm install -g @openai/codex` 并设置 `OPENAI_API_KEY`
 
 ## 安装
 
@@ -179,6 +180,8 @@ bash ~/code/Claude-to-IM-skill/scripts/install-codex.sh --link
 | `src/config.ts` | 加载/保存 `config.env`，映射为 bridge 设置 |
 | `src/store.ts` | JSON 文件 BridgeStore（30 个方法，写穿缓存） |
 | `src/llm-provider.ts` | Claude Agent SDK `query()` → SSE 流 |
+| `src/codex-provider.ts` | Codex SDK `runStreamed()` → SSE 流 |
+| `src/sse-utils.ts` | 共享的 SSE 格式化辅助函数 |
 | `src/permission-gateway.ts` | 异步桥接：SDK `canUseTool` ↔ IM 按钮 |
 | `src/logger.ts` | 密钥脱敏的文件日志，支持轮转 |
 | `scripts/daemon.sh` | 进程管理（start/stop/status/logs） |

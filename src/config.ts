@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 
 export interface Config {
+  runtime: 'claude' | 'codex' | 'auto';
   enabledChannels: string[];
   defaultWorkDir: string;
   defaultModel: string;
@@ -64,7 +65,11 @@ export function loadConfig(): Config {
     // Config file doesn't exist yet — use defaults
   }
 
+  const rawRuntime = env.get("CTI_RUNTIME") || "claude";
+  const runtime = (["claude", "codex", "auto"].includes(rawRuntime) ? rawRuntime : "claude") as Config["runtime"];
+
   return {
+    runtime,
     enabledChannels: splitCsv(env.get("CTI_ENABLED_CHANNELS")) ?? [],
     defaultWorkDir: env.get("CTI_DEFAULT_WORKDIR") || process.cwd(),
     defaultModel:
@@ -93,6 +98,7 @@ function formatEnvLine(key: string, value: string | undefined): string {
 
 export function saveConfig(config: Config): void {
   let out = "";
+  out += formatEnvLine("CTI_RUNTIME", config.runtime);
   out += formatEnvLine(
     "CTI_ENABLED_CHANNELS",
     config.enabledChannels.join(",")

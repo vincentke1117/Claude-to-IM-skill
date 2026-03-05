@@ -9,13 +9,10 @@ import fs from 'node:fs';
 import { execSync } from 'node:child_process';
 import { query } from '@anthropic-ai/claude-agent-sdk';
 import type { SDKMessage, PermissionResult } from '@anthropic-ai/claude-agent-sdk';
-import type { LLMProvider, StreamChatParams } from 'claude-to-im/src/lib/bridge/host.js';
+import type { LLMProvider, StreamChatParams, FileAttachment } from 'claude-to-im/src/lib/bridge/host.js';
 import type { PendingPermissions } from './permission-gateway.js';
 
-function sseEvent(type: string, data: unknown): string {
-  const payload = typeof data === 'string' ? data : JSON.stringify(data);
-  return `data: ${JSON.stringify({ type, data: payload })}\n`;
-}
+import { sseEvent } from './sse-utils.js';
 
 // ── Environment isolation ──
 
@@ -66,6 +63,14 @@ export function buildSubprocessEnv(): Record<string, string> {
         if (v !== undefined && k.startsWith('ANTHROPIC_')) out[k] = v;
       }
     }
+
+    // In codex/auto mode, pass through OPENAI_* env vars
+    const runtime = process.env.CTI_RUNTIME || 'claude';
+    if (runtime === 'codex' || runtime === 'auto') {
+      for (const [k, v] of Object.entries(process.env)) {
+        if (v !== undefined && k.startsWith('OPENAI_')) out[k] = v;
+      }
+    }
   }
 
   return out;
@@ -111,6 +116,53 @@ export function resolveClaudeCliPath(): string | undefined {
   }
 
   return undefined;
+}
+
+// ── Multi-modal prompt builder ──
+
+type ImageMediaType = 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp';
+
+const SUPPORTED_IMAGE_TYPES = new Set<string>([
+  'image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp',
+]);
+
+/**
+ * Build a prompt for query(). When files are present, returns an async
+ * iterable that yields a single SDKUserMessage with multi-modal content
+ * (image blocks + text). Otherwise returns the plain text string.
+ */
+function buildPrompt(
+  text: string,
+  files?: FileAttachment[],
+): string | AsyncIterable<{ type: 'user'; message: { role: 'user'; content: unknown[] }; parent_tool_use_id: null; session_id: string }> {
+  const imageFiles = files?.filter(f => SUPPORTED_IMAGE_TYPES.has(f.type));
+  if (!imageFiles || imageFiles.length === 0) return text;
+
+  const contentBlocks: unknown[] = [];
+
+  for (const file of imageFiles) {
+    contentBlocks.push({
+      type: 'image',
+      source: {
+        type: 'base64',
+        media_type: (file.type === 'image/jpg' ? 'image/jpeg' : file.type) as ImageMediaType,
+        data: file.data,
+      },
+    });
+  }
+
+  if (text.trim()) {
+    contentBlocks.push({ type: 'text', text });
+  }
+
+  const msg = {
+    type: 'user' as const,
+    message: { role: 'user' as const, content: contentBlocks },
+    parent_tool_use_id: null,
+    session_id: '',
+  };
+
+  return (async function* () { yield msg; })();
 }
 
 export class SDKLLMProvider implements LLMProvider {
@@ -169,8 +221,9 @@ export class SDKLLMProvider implements LLMProvider {
               queryOptions.pathToClaudeCodeExecutable = cliPath;
             }
 
+            const prompt = buildPrompt(params.prompt, params.files);
             const q = query({
-              prompt: params.prompt,
+              prompt: prompt as Parameters<typeof query>[0]['prompt'],
               options: queryOptions as Parameters<typeof query>[0]['options'],
             });
 

@@ -28,6 +28,7 @@ describe('maskSecret', () => {
 
 describe('configToSettings', () => {
   const base: Config = {
+    runtime: 'claude',
     enabledChannels: [],
     defaultWorkDir: '/tmp/test',
     defaultModel: 'claude-sonnet-4-20250514',
@@ -130,6 +131,7 @@ describe('loadConfig/saveConfig round-trip', () => {
 
   it('configToSettings returns correct defaults', () => {
     const m = configToSettings({
+      runtime: 'claude',
       enabledChannels: [],
       defaultWorkDir: process.cwd(),
       defaultModel: 'claude-sonnet-4-20250514',

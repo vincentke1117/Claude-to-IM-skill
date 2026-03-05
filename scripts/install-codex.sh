@@ -43,10 +43,10 @@ else
   echo "Copied to: $TARGET_DIR"
 fi
 
-# Ensure dependencies
+# Ensure dependencies (need devDependencies for build step)
 if [ ! -d "$TARGET_DIR/node_modules" ]; then
   echo "Installing dependencies..."
-  (cd "$TARGET_DIR" && npm install --production)
+  (cd "$TARGET_DIR" && npm install)
 fi
 
 # Ensure build
@@ -54,6 +54,10 @@ if [ ! -f "$TARGET_DIR/dist/daemon.mjs" ]; then
   echo "Building daemon bundle..."
   (cd "$TARGET_DIR" && npm run build)
 fi
+
+# Prune devDependencies after build
+echo "Pruning dev dependencies..."
+(cd "$TARGET_DIR" && npm prune --production)
 
 echo ""
 echo "Done! Start a new Codex session and use:"
